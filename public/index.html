@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wallet Service</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e37;
+    --text: #e6e8eb;
+    --muted: #8a8f98;
+    --accent: #4f8cff;
+    --green: #3ecf8e;
+    --red: #ef5350;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  header .user-info {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  #logoutBtn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  #logoutBtn:hover { color: var(--text); border-color: var(--muted); }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 14px 0;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .balance-amount {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 4px 0;
+  }
+
+  .balance-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input {
+    width: 100%;
+    background: #0f1115;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  button.primary {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:hover { opacity: 0.9; }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .msg {
+    font-size: 13px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    display: none;
+  }
+  .msg.show { display: block; }
+  .msg.success { background: rgba(62, 207, 142, 0.12); color: var(--green); }
+  .msg.error { background: rgba(239, 83, 80, 0.12); color: var(--red); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  #loginScreen {
+    max-width: 360px;
+    margin: 80px auto;
+    padding: 0 24px;
+  }
+  #loginScreen h1 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  #loginScreen p.sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .toggle-row {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .toggle-row a { color: var(--accent); cursor: pointer; text-decoration: none; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>Wallet Service</h1>
+  <p class="sub" id="authSubtitle">Log in to your account</p>
+
+  <div class="card">
+    <div id="registerFields" class="hidden">
+      <label for="fullName">Full name</label>
+      <input type="text" id="fullName" placeholder="Jane Doe" />
+    </div>
+
+    <label for="authEmail">Email</label>
+    <input type="email" id="authEmail" placeholder="user1@wallet.com" />
+
+    <label for="authPassword">Password</label>
+    <input type="password" id="authPassword" placeholder="********" />
+
+    <button class="primary" id="authSubmitBtn">Log in</button>
+    <div class="msg" id="authMsg"></div>
+
+    <div class="toggle-row">
+        <span id="toggleText">Don't have an account?</span>
+        <a id="toggleLink">Register</a>
+    </div>
+  </div>
+</div>
+
+<div id="appScreen" class="hidden">
+  <header>
+    <h1>Wallet Service</h1>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="user-info" id="userInfo"></span>
+      <button id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Balance</h2>
+      <div class="balance-amount" id="balanceAmount">-</div>
+      <div class="balance-sub" id="balanceSub"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>Deposit</h2>
+        <label for="depositAmount">Amount</label>
+        <input type="number" id="depositAmount" placeholder="0.00" min="0" step="0.01" />
+        <button class="primary" id="depositBtn">Deposit</button>
+        <div class="msg" id="depositMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Withdraw</h2>
+        <label for="withdrawAmount">Amount</label>
+        <input type="number" id="withdrawAmount" placeholder="0.00" min="0" step="0.01" />
+        <button class="primary" id="withdrawBtn">Withdraw</button>
+        <div class="msg" id="withdrawMsg"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Transfer money</h2>
+      <label for="receiverEmail">Recipient email</label>
+      <input type="email" id="receiverEmail" placeholder="user2@wallet.com" />
+      <label for="transferAmount">Amount</label>
+      <input type="number" id="transferAmount" placeholder="0.00" min="0" step="0.01" />
+      <button class="primary" id="transferBtn">Send transfer</button>
+      <div class="msg" id="transferMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Transaction history</h2>
+      <div id="historyContainer">
+        <div class="empty-state">No transactions yet</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const API_BASE = '/api';
+
+  let accessToken = null;
+  let currentUser = null;
+  let isRegisterMode = false;
+
+  const loginScreen = document.getElementById('loginScreen');
+  const appScreen = document.getElementById('appScreen');
+
+  function showMsg(elId, text, type) {
+    const el = document.getElementById(elId);
+    el.textContent = text;
+    el.className = 'msg show ' + type;
+  }
+  function clearMsg(elId) {
+    const el = document.getElementById(elId);
+    el.className = 'msg';
+  }
+
+  async function apiCall(path, options) {
+    options = options || {};
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+    if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers: headers }));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'something went wrong');
+    return data;
+  }
+
+  document.getElementById('toggleLink').addEventListener('click', function () {
+  setAuthMode(!isRegisterMode);
+});
+
+function setAuthMode(registerMode) {
+  isRegisterMode = registerMode;
+  document.getElementById('registerFields').classList.toggle('hidden', !isRegisterMode);
+  document.getElementById('authSubtitle').textContent = isRegisterMode
+    ? 'Create a new account'
+    : 'Log in to your account';
+  document.getElementById('authSubmitBtn').textContent = isRegisterMode ? 'Register' : 'Log in';
+  document.getElementById('toggleText').textContent = isRegisterMode
+    ? 'Already have an account?'
+    : "Don't have an account?";
+  document.getElementById('toggleLink').textContent = isRegisterMode ? 'Log in' : 'Register';
+  clearMsg('authMsg');
+}
+
+  document.getElementById('authSubmitBtn').addEventListener('click', async function () {
+    clearMsg('authMsg');
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+
+    try {
+      if (isRegisterMode) {
+        const fullName = document.getElementById('fullName').value.trim();
+        if (!fullName || !email || !password) throw new Error('fill in all fields');
+        await apiCall('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ fullName: fullName, email: email, password: password })
+        });
+        showMsg('authMsg', 'account created, you can log in now', 'success');
+        setAuthMode(false); // switch back to login mode
+        return;
+      }
+
+      if (!email || !password) throw new Error('enter email and password');
+      const result = await apiCall('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: email, password: password })
+      });
+
+      accessToken = result.data.accessToken;
+      currentUser = result.data.user;
+      enterApp();
+    } catch (err) {
+      showMsg('authMsg', err.message, 'error');
+    }
+  });
+
+  function enterApp() {
+    loginScreen.classList.add('hidden');
+    appScreen.classList.remove('hidden');
+    document.getElementById('userInfo').textContent = currentUser.fullName + ' (' + currentUser.email + ')';
+    loadBalance();
+    loadHistory();
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', function () {
+    accessToken = null;
+    currentUser = null;
+    appScreen.classList.add('hidden');
+    loginScreen.classList.remove('hidden');
+    document.getElementById('authEmail').value = '';
+    document.getElementById('authPassword').value = '';
+  });
+
+  async function loadBalance() {
+    try {
+      const result = await apiCall('/wallet/balance');
+      document.getElementById('balanceAmount').textContent = 'Rs. ' + result.data.balance.toFixed(2);
+      document.getElementById('balanceSub').textContent = result.data.cached
+        ? 'served from cache'
+        : 'fresh from database';
+    } catch (err) {
+      document.getElementById('balanceAmount').textContent = '-';
+    }
+  }
+
+  document.getElementById('depositBtn').addEventListener('click', async function () {
+    clearMsg('depositMsg');
+    const amount = parseFloat(document.getElementById('depositAmount').value);
+    if (!amount || amount <= 0) { showMsg('depositMsg', 'enter a valid amount', 'error'); return; }
+
+    try {
+      await apiCall('/wallet/deposit', { method: 'POST', body: JSON.stringify({ amount: amount }) });
+      showMsg('depositMsg', 'deposit successful', 'success');
+      document.getElementById('depositAmount').value = '';
+      loadBalance();
+      loadHistory();
+    } catch (err) {
+      showMsg('depositMsg', err.message, 'error');
+    }
+  });
+
+  document.getElementById('withdrawBtn').addEventListener('click', async function () {
+    clearMsg('withdrawMsg');
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    if (!amount || amount <= 0) { showMsg('withdrawMsg', 'enter a valid amount', 'error'); return; }
+
+    try {
+      await apiCall('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount: amount }) });
+      showMsg('withdrawMsg', 'withdraw successful', 'success');
+      document.getElementById('withdrawAmount').value = '';
+      loadBalance();
+      loadHistory();
+    } catch (err) {
+      showMsg('withdrawMsg', err.message, 'error');
+    }
+  });
+
+  document.getElementById('transferBtn').addEventListener('click', async function () {
+    clearMsg('transferMsg');
+    const receiverEmail = document.getElementById('receiverEmail').value.trim();
+    const amount = parseFloat(document.getElementById('transferAmount').value);
+
+    if (!receiverEmail) { showMsg('transferMsg', 'enter recipient email', 'error'); return; }
+    if (!amount || amount <= 0) { showMsg('transferMsg', 'enter a valid amount', 'error'); return; }
+
+    try {
+      await apiCall('/transactions/transfer', {
+        method: 'POST',
+        body: JSON.stringify({ receiverEmail: receiverEmail, amount: amount })
+      });
+      showMsg('transferMsg', 'transfer successful', 'success');
+      document.getElementById('receiverEmail').value = '';
+      document.getElementById('transferAmount').value = '';
+      loadBalance();
+      loadHistory();
+    } catch (err) {
+      showMsg('transferMsg', err.message, 'error');
+    }
+  });
+
+  async function loadHistory() {
+    try {
+      const result = await apiCall('/transactions/history');
+      const txns = result.data;
+      const container = document.getElementById('historyContainer');
+
+      if (!txns || txns.length === 0) {
+        container.innerHTML = '<div class="empty-state">No transactions yet</div>';
+        return;
+      }
+
+      let rows = '';
+      txns.forEach(function (t) {
+        const date = new Date(t.created_at).toLocaleString();
+        rows += '<tr><td>' + date + '</td><td>' + t.status + '</td><td>' + t.amount + '</td></tr>';
+      });
+
+      container.innerHTML =
+        '<table><thead><tr><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>' +
+        rows +
+        '</tbody></table>';
+    } catch (err) {
+      console.error('failed to load history:', err.message);
+    }
+  }
+</script>
+
+</body>
+</html>
