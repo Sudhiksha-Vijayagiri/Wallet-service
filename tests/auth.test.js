@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../src/app');
 const pool = require('../src/config/db');
+const redisClient = require("../src/config/redis");
 
 // using a random-ish email each run so tests don't collide with old data
 const testEmail = `test_${Date.now()}@wallet.com`;
@@ -9,6 +10,7 @@ describe('Auth routes', () => {
   afterAll(async () => {
     // cleanup so we don't leave junk users in the db after test run
     await pool.query('DELETE FROM users WHERE email = $1', [testEmail]);
+    await redisClient.quit();
     await pool.end();
   });
 
