@@ -1,6 +1,8 @@
 const request = require('supertest');
 const app = require('../src/app');
 const pool = require('../src/config/db');
+const redisClient = require("../src/config/redis");
+
 
 const testEmail = `wallet_test_${Date.now()}@wallet.com`;
 let accessToken;
@@ -54,7 +56,7 @@ describe('Wallet routes', () => {
     `DELETE FROM users WHERE email = $1`,
     [testEmail]
   );
-
+  await redisClient.quit();
   await pool.end();
 });
 
