@@ -76,4 +76,4 @@ jobs:
         run: PGPASSWORD=wallet_pass psql -h localhost -U wallet_user -d wallet_service -f sql/schema.sql
 
       - name: run tests
-        run: npm test
+        run: npm test -- --detectOpenHandles
