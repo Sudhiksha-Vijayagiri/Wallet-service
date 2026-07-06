@@ -22,9 +22,41 @@ describe('Wallet routes', () => {
   });
 
   afterAll(async () => {
-    await pool.query('DELETE FROM users WHERE email = $1', [testEmail]);
-    await pool.end();
-  });
+  // Find the wallet belonging to the test user
+  const walletResult = await pool.query(
+    `
+    SELECT w.id
+    FROM wallets w
+    JOIN users u ON w.user_id = u.id
+    WHERE u.email = $1
+    `,
+    [testEmail]
+  );
+  if (walletResult.rows.length > 0) {
+    const walletId = walletResult.rows[0].id;
+    await pool.query(
+      `
+      DELETE FROM ledger_entries
+      WHERE wallet_id = $1
+      `,
+      [walletId]
+    );
+    await pool.query(
+      `
+      DELETE FROM transactions
+      WHERE sender_wallet_id = $1
+         OR receiver_wallet_id = $1
+      `,
+      [walletId]
+    );
+  }
+  await pool.query(
+    `DELETE FROM users WHERE email = $1`,
+    [testEmail]
+  );
+
+  await pool.end();
+});
 
   it('should get balance as 0 for new user', async () => {
     const res = await request(app)

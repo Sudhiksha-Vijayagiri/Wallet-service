@@ -33,9 +33,47 @@ describe('Transaction routes', () => {
   });
 
   afterAll(async () => {
-    await pool.query('DELETE FROM users WHERE email IN ($1, $2)', [senderEmail, receiverEmail]);
-    await pool.end();
-  });
+  const walletResult = await pool.query(
+    `
+    SELECT w.id
+    FROM wallets w
+    JOIN users u ON w.user_id = u.id
+    WHERE u.email IN ($1, $2)
+    `,
+    [senderEmail, receiverEmail]
+  );
+
+  const walletIds = walletResult.rows.map(r => r.id);
+
+  if (walletIds.length > 0) {
+    await pool.query(
+      `
+      DELETE FROM ledger_entries
+      WHERE wallet_id = ANY($1::uuid[])
+      `,
+      [walletIds]
+    );
+
+    await pool.query(
+      `
+      DELETE FROM transactions
+      WHERE sender_wallet_id = ANY($1::uuid[])
+         OR receiver_wallet_id = ANY($1::uuid[])
+      `,
+      [walletIds]
+    );
+  }
+
+  await pool.query(
+    `
+    DELETE FROM users
+    WHERE email IN ($1, $2)
+    `,
+    [senderEmail, receiverEmail]
+  );
+
+  await pool.end();
+});
 
   it('should transfer money to another user', async () => {
     const res = await request(app)

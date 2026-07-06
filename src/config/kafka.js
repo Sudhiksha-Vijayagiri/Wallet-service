@@ -20,11 +20,27 @@ const consumer = kafka.consumer({ groupId: 'wallet-service-notification-group' }
 
 let producerConnected = false;
 
+// async function getProducer() {
+//   if (!producerConnected) {
+//     await producer.connect();
+//     producerConnected = true;
+//   }
+//   return producer;
+// }
 async function getProducer() {
-  if (!producerConnected) {
+  if (producerConnected) return producer;
+
+  try {
     await producer.connect();
     producerConnected = true;
+  } catch (err) {
+    console.error("Kafka unavailable:", err.message);
+
+    return {
+      send: async () => {}
+    };
   }
+
   return producer;
 }
 
