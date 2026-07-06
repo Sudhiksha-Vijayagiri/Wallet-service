@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../src/app');
 const pool = require('../src/config/db');
+const redisClient = require("../src/config/redis");
 
 const senderEmail = `sender_${Date.now()}@wallet.com`;
 const receiverEmail = `receiver_${Date.now()}@wallet.com`;
@@ -71,7 +72,7 @@ describe('Transaction routes', () => {
     `,
     [senderEmail, receiverEmail]
   );
-
+  await redisClient.quit();
   await pool.end();
 });
 
