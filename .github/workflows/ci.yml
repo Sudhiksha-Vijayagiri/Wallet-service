@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: wallet_user
+          POSTGRES_PASSWORD: wallet_pass
+          POSTGRES_DB: wallet_service
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wallet_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PG_HOST: localhost
+      PG_PORT: 5432
+      PG_USER: wallet_user
+      PG_PASSWORD: wallet_pass
+      PG_DATABASE: wallet_service
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: test_secret_for_ci_only
+      JWT_REFRESH_SECRET: test_refresh_secret_for_ci_only
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 7d
+      KAFKA_BROKER: localhost:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: '1'
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: install dependencies
+        run: npm ci
+
+      - name: wait for postgres to be ready
+        run: |
+          until pg_isready -h localhost -p 5432 -U wallet_user; do
+            echo "waiting for postgres..."
+            sleep 2
+          done
+        env:
+          PGPASSWORD: wallet_pass
+
+      - name: apply db schema
+        run: PGPASSWORD=wallet_pass psql -h localhost -U wallet_user -d wallet_service -f sql/schema.sql
+
+      - name: run tests
+        run: npm test
