@@ -111,6 +111,32 @@ with `SELECT ... FOR UPDATE` inside a DB transaction, and always locks in a
 consistent order (sorted by wallet id) so two transfers going in opposite
 directions between the same two wallets can't deadlock each other.
 
+### Testing it for real
+
+Didn't want to just trust this by reading the code, so there's a script
+(`scripts/concurrency-test.js`) that actually fires a bunch of transfer
+requests at the same wallet at once and checks the math after.
+
+Ran it with 30 concurrent requests, 10 each, starting balance 1000:
+30 requests fired
+20 succeeded, 10 failed (rate limiter kicked in - "too many transfer requests, slow down")
+expected sender balance: 800
+actual sender balance:   800
+PASS - no lost updates
+
+The 10 failures are the rate limiter doing its job (max 20 transfer requests/min
+per IP), not a bug. The important part is the 20 that got through all hit the
+locking logic at basically the same time and the balance still came out exact.
+If the `FOR UPDATE` lock wasn't there, this is where you'd expect to see the
+balance come out higher than 800 (some debit getting silently overwritten by
+another request that read stale data).
+
+Run it yourself with:
+```bash
+npm run test:concurrency
+```
+(server needs to be running already, in a separate terminal)
+
 ## Idempotency
 
 Transfer requests can include an `Idempotency-Key` header. If the same key is
