@@ -1,5 +1,9 @@
 // small helper functions around the redis client
 // used mainly for caching wallet balances (cache-aside pattern)
+//
+// these all fail "open" - if redis is down or misconfigured, we just skip
+// the cache instead of blowing up the request. caching is a nice-to-have,
+// it should never be the reason a balance check or transfer fails
 
 const redisClient = require('../config/redis');
 
@@ -10,16 +14,29 @@ function balanceKey(walletId) {
 }
 
 async function getCachedBalance(walletId) {
-  const cached = await redisClient.get(balanceKey(walletId));
-  return cached !== null ? parseFloat(cached) : null;
+  try {
+    const cached = await redisClient.get(balanceKey(walletId));
+    return cached !== null ? parseFloat(cached) : null;
+  } catch (err) {
+    console.error('redis get failed, skipping cache:', err.message);
+    return null;
+  }
 }
 
 async function setCachedBalance(walletId, balance) {
-  await redisClient.set(balanceKey(walletId), balance, 'EX', BALANCE_CACHE_TTL);
+  try {
+    await redisClient.set(balanceKey(walletId), balance, 'EX', BALANCE_CACHE_TTL);
+  } catch (err) {
+    console.error('redis set failed, skipping cache:', err.message);
+  }
 }
 
 async function invalidateBalance(walletId) {
-  await redisClient.del(balanceKey(walletId));
+  try {
+    await redisClient.del(balanceKey(walletId));
+  } catch (err) {
+    console.error('redis del failed, skipping cache invalidation:', err.message);
+  }
 }
 
 module.exports = {
