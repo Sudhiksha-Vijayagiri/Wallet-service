@@ -159,6 +159,7 @@
     padding: 20px 0;
   }
 
+  /* login screen */
   #loginScreen {
     max-width: 360px;
     margin: 80px auto;
@@ -186,6 +187,7 @@
 </head>
 <body>
 
+<!-- LOGIN / REGISTER SCREEN -->
 <div id="loginScreen">
   <h1>Wallet Service</h1>
   <p class="sub" id="authSubtitle">Log in to your account</p>
@@ -206,12 +208,12 @@
     <div class="msg" id="authMsg"></div>
 
     <div class="toggle-row">
-        <span id="toggleText">Don't have an account?</span>
-        <a id="toggleLink">Register</a>
+      <span id="toggleText">Don't have an account? <a id="toggleLink">Register</a></span>
     </div>
   </div>
 </div>
 
+<!-- MAIN APP (shown after login) -->
 <div id="appScreen" class="hidden">
   <header>
     <h1>Wallet Service</h1>
@@ -262,12 +264,38 @@
         <div class="empty-state">No transactions yet</div>
       </div>
     </div>
+
+    <div class="card hidden" id="adminCard">
+      <h2>Admin panel</h2>
+
+      <div style="margin-bottom: 18px;">
+        <button class="primary" id="loadUsersBtn" style="margin-bottom: 10px;">Load all users</button>
+        <div id="adminUsersContainer"></div>
+      </div>
+
+      <div style="margin-bottom: 18px;">
+        <button class="primary" id="loadAllTxnBtn" style="margin-bottom: 10px;">Load all transactions</button>
+        <div id="adminTxnContainer"></div>
+      </div>
+
+      <div>
+        <label for="reconcileWalletId">Reconcile wallet (paste a wallet id)</label>
+        <input type="text" id="reconcileWalletId" placeholder="wallet uuid" />
+        <button class="primary" id="reconcileBtn">Check reconciliation</button>
+        <div class="msg" id="reconcileMsg"></div>
+        <div id="reconcileResult"></div>
+      </div>
+    </div>
   </main>
 </div>
 
 <script>
+  // everything talks to the same API this page is served from,
+  // so this works both on localhost and once deployed (no hardcoded host)
   const API_BASE = '/api';
 
+  // kept in memory only - refreshing the page logs you out, which is fine
+  // for a basic demo ui, no localStorage/sessionStorage used
   let accessToken = null;
   let currentUser = null;
   let isRegisterMode = false;
@@ -296,23 +324,22 @@
     return data;
   }
 
+  // --- auth screen toggle (login vs register) ---
   document.getElementById('toggleLink').addEventListener('click', function () {
-  setAuthMode(!isRegisterMode);
-});
-
-function setAuthMode(registerMode) {
-  isRegisterMode = registerMode;
-  document.getElementById('registerFields').classList.toggle('hidden', !isRegisterMode);
-  document.getElementById('authSubtitle').textContent = isRegisterMode
-    ? 'Create a new account'
-    : 'Log in to your account';
-  document.getElementById('authSubmitBtn').textContent = isRegisterMode ? 'Register' : 'Log in';
-  document.getElementById('toggleText').textContent = isRegisterMode
-    ? 'Already have an account?'
-    : "Don't have an account?";
-  document.getElementById('toggleLink').textContent = isRegisterMode ? 'Log in' : 'Register';
-  clearMsg('authMsg');
-}
+    isRegisterMode = !isRegisterMode;
+    document.getElementById('registerFields').classList.toggle('hidden', !isRegisterMode);
+    document.getElementById('authSubtitle').textContent = isRegisterMode
+      ? 'Create a new account'
+      : 'Log in to your account';
+    document.getElementById('authSubmitBtn').textContent = isRegisterMode ? 'Register' : 'Log in';
+    document.getElementById('toggleText').innerHTML = isRegisterMode
+      ? 'Already have an account? <a id="toggleLink2">Log in</a>'
+      : 'Don\'t have an account? <a id="toggleLink2">Register</a>';
+    document.getElementById('toggleLink2').addEventListener('click', function () {
+      document.getElementById('toggleLink').click();
+    });
+    clearMsg('authMsg');
+  });
 
   document.getElementById('authSubmitBtn').addEventListener('click', async function () {
     clearMsg('authMsg');
@@ -328,7 +355,7 @@ function setAuthMode(registerMode) {
           body: JSON.stringify({ fullName: fullName, email: email, password: password })
         });
         showMsg('authMsg', 'account created, you can log in now', 'success');
-        setAuthMode(false); // switch back to login mode
+        document.getElementById('toggleLink').click(); // switch back to login mode
         return;
       }
 
@@ -350,6 +377,10 @@ function setAuthMode(registerMode) {
     loginScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     document.getElementById('userInfo').textContent = currentUser.fullName + ' (' + currentUser.email + ')';
+
+    // only admins see the admin panel
+    document.getElementById('adminCard').classList.toggle('hidden', currentUser.role !== 'admin');
+
     loadBalance();
     loadHistory();
   }
@@ -363,6 +394,7 @@ function setAuthMode(registerMode) {
     document.getElementById('authPassword').value = '';
   });
 
+  // --- balance ---
   async function loadBalance() {
     try {
       const result = await apiCall('/wallet/balance');
@@ -375,6 +407,7 @@ function setAuthMode(registerMode) {
     }
   }
 
+  // --- deposit ---
   document.getElementById('depositBtn').addEventListener('click', async function () {
     clearMsg('depositMsg');
     const amount = parseFloat(document.getElementById('depositAmount').value);
@@ -391,6 +424,7 @@ function setAuthMode(registerMode) {
     }
   });
 
+  // --- withdraw ---
   document.getElementById('withdrawBtn').addEventListener('click', async function () {
     clearMsg('withdrawMsg');
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
@@ -407,6 +441,7 @@ function setAuthMode(registerMode) {
     }
   });
 
+  // --- transfer ---
   document.getElementById('transferBtn').addEventListener('click', async function () {
     clearMsg('transferMsg');
     const receiverEmail = document.getElementById('receiverEmail').value.trim();
@@ -430,6 +465,7 @@ function setAuthMode(registerMode) {
     }
   });
 
+  // --- history ---
   async function loadHistory() {
     try {
       const result = await apiCall('/transactions/history');
@@ -452,9 +488,78 @@ function setAuthMode(registerMode) {
         rows +
         '</tbody></table>';
     } catch (err) {
+      // fails silently, history is a nice-to-have, not critical
       console.error('failed to load history:', err.message);
     }
   }
+  // --- admin: load all users ---
+  document.getElementById('loadUsersBtn').addEventListener('click', async function () {
+    const container = document.getElementById('adminUsersContainer');
+    container.innerHTML = '<div class="empty-state">loading...</div>';
+    try {
+      const result = await apiCall('/admin/users');
+      const users = result.data;
+      if (!users || users.length === 0) {
+        container.innerHTML = '<div class="empty-state">no users found</div>';
+        return;
+      }
+      let rows = '';
+      users.forEach(function (u) {
+        rows += '<tr><td>' + u.full_name + '</td><td>' + u.email + '</td><td>' + u.role + '</td></tr>';
+      });
+      container.innerHTML =
+        '<table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    } catch (err) {
+      container.innerHTML = '<div class="empty-state">' + err.message + '</div>';
+    }
+  });
+
+  // --- admin: load all transactions ---
+  document.getElementById('loadAllTxnBtn').addEventListener('click', async function () {
+    const container = document.getElementById('adminTxnContainer');
+    container.innerHTML = '<div class="empty-state">loading...</div>';
+    try {
+      const result = await apiCall('/admin/transactions');
+      const txns = result.data;
+      if (!txns || txns.length === 0) {
+        container.innerHTML = '<div class="empty-state">no transactions found</div>';
+        return;
+      }
+      let rows = '';
+      txns.forEach(function (t) {
+        const date = new Date(t.created_at).toLocaleString();
+        rows += '<tr><td>' + date + '</td><td>' + t.status + '</td><td>' + t.amount + '</td></tr>';
+      });
+      container.innerHTML =
+        '<table><thead><tr><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    } catch (err) {
+      container.innerHTML = '<div class="empty-state">' + err.message + '</div>';
+    }
+  });
+
+  // --- admin: reconcile a wallet ---
+  document.getElementById('reconcileBtn').addEventListener('click', async function () {
+    clearMsg('reconcileMsg');
+    const walletId = document.getElementById('reconcileWalletId').value.trim();
+    const resultContainer = document.getElementById('reconcileResult');
+    resultContainer.innerHTML = '';
+
+    if (!walletId) { showMsg('reconcileMsg', 'paste a wallet id first', 'error'); return; }
+
+    try {
+      const result = await apiCall('/admin/reconcile/' + walletId);
+      const r = result.data;
+      resultContainer.innerHTML =
+        '<table><tbody>' +
+        '<tr><td>Actual balance</td><td>' + r.actualBalance + '</td></tr>' +
+        '<tr><td>Computed from ledger</td><td>' + r.computedBalance + '</td></tr>' +
+        '<tr><td>Matches</td><td>' + (r.matches ? 'yes' : 'NO - mismatch!') + '</td></tr>' +
+        '</tbody></table>';
+      showMsg('reconcileMsg', r.matches ? 'reconciliation passed' : 'reconciliation FAILED', r.matches ? 'success' : 'error');
+    } catch (err) {
+      showMsg('reconcileMsg', err.message, 'error');
+    }
+  });
 </script>
 
 </body>
