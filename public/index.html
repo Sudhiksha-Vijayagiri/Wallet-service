@@ -505,10 +505,22 @@
       }
       let rows = '';
       users.forEach(function (u) {
-        rows += '<tr><td>' + u.full_name + '</td><td>' + u.email + '</td><td>' + u.role + '</td></tr>';
+        const walletId = u.wallet_id || '(no wallet)';
+        rows += '<tr><td>' + u.full_name + '</td><td>' + u.email + '</td><td>' + u.role + '</td>' +
+          '<td>' + walletId + (u.wallet_id ? ' <a href="#" class="copyWalletId" data-id="' + u.wallet_id + '" style="color:var(--accent);">copy</a>' : '') + '</td></tr>';
       });
       container.innerHTML =
-        '<table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        '<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Wallet ID</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+      // wire up the copy links
+      container.querySelectorAll('.copyWalletId').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+          e.preventDefault();
+          navigator.clipboard.writeText(this.dataset.id);
+          this.textContent = 'copied';
+          setTimeout(() => { this.textContent = 'copy'; }, 1500);
+        });
+      });
     } catch (err) {
       container.innerHTML = '<div class="empty-state">' + err.message + '</div>';
     }
@@ -528,10 +540,12 @@
       let rows = '';
       txns.forEach(function (t) {
         const date = new Date(t.created_at).toLocaleString();
-        rows += '<tr><td>' + date + '</td><td>' + t.status + '</td><td>' + t.amount + '</td></tr>';
+        rows += '<tr><td>' + date + '</td><td>' + t.status + '</td><td>' + t.amount + '</td>' +
+          '<td style="font-size:11px;">' + (t.sender_wallet_id || '-') + '</td>' +
+          '<td style="font-size:11px;">' + (t.receiver_wallet_id || '-') + '</td></tr>';
       });
       container.innerHTML =
-        '<table><thead><tr><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        '<table><thead><tr><th>Date</th><th>Status</th><th>Amount</th><th>Sender wallet</th><th>Receiver wallet</th></tr></thead><tbody>' + rows + '</tbody></table>';
     } catch (err) {
       container.innerHTML = '<div class="empty-state">' + err.message + '</div>';
     }

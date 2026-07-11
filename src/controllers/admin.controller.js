@@ -4,8 +4,14 @@ const pool = require('../config/db');
 const transactionService = require('../services/transaction.service');
 
 const getAllUsers = asyncHandler(async (req, res) => {
+  // joined with wallets so the wallet id is visible right here - saves
+  // having to go dig through the database directly just to find a wallet id
   const result = await pool.query(
-    'SELECT id, full_name, email, role, created_at FROM users ORDER BY created_at DESC'
+    `SELECT u.id, u.full_name, u.email, u.role, u.created_at,
+            w.id AS wallet_id, w.balance AS wallet_balance
+     FROM users u
+     LEFT JOIN wallets w ON w.user_id = u.id
+     ORDER BY u.created_at DESC`
   );
   return successResponse(res, 200, 'users fetched', result.rows);
 });
