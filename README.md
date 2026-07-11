@@ -217,6 +217,7 @@ retry on network timeouts.
 
 ## Notes / things not in scope
 
+- The admin-endpoint is not full working on render (needs to be fixed)
 - No session/token blacklist table, logout is just handled client side
 - Kafka is used for a single event type only, kept intentionally simple
 - Kafka doesn't run on the deployed (Render) version, see Deployment section above
