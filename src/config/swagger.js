@@ -12,11 +12,11 @@ const options = {
       description: 'REST API for wallet management and p2p money transfers'
     },
     servers: [
-      {
-        url: 'http://localhost:3000/api',
-        description: 'local dev server'
-      }
-    ],
+  {
+    url: '/api',
+    description: 'current server (works both locally and when deployed)'
+  }
+],
     components: {
       securitySchemes: {
         bearerAuth: {
